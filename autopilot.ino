@@ -1,6 +1,16 @@
-#include "Wire.h"       
-#include "I2Cdev.h"     
+/*
+* Autopilot
+* author: Farzan Ali Faisal
+* date: 28/05/2023
+*/
+
+#include "Wire.h"
+#include "I2Cdev.h"
 #include "MPU6050.h"
+#include "Servo.h"
+
+Servo elevator;
+int elevatorPin = 10;
 
 MPU6050 mpu;
 int16_t ax, ay, az;
@@ -24,20 +34,35 @@ void setup() {
 }
 
 void loop() {
-  pulse = pulseIn(9, HIGH)/1000.0;
-  if(pulse > 1.8){
+  pulse = pulseIn(9, HIGH) / 1000.0;
+  if (pulse > 1.8) {
     digitalWrite(13, HIGH);
-    printData();
-  }
-  else{
+    autopilotOn();
+    printGyroData();
+  } else {
     digitalWrite(13, LOW);
+    autopilotOff();
   }
 }
 
-void printData(){
+void autopilotOn() {
+  elevator.attach(elevatorPin);
+  // Moving the servo
+  elevator.write(30);
+}
+
+void autopilotOff() {
+  //move servo back to neutral positioning
+  elevator.write(90);
+  // delay(100);
+  pinMode(10, LOW);
+  elevator.detach();
+}
+
+void printGyroData() {
   mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-  data.X = map(ax, -17000, 17000, 0, 255 ); // X axis data
-  data.Y = map(ay, -17000, 17000, 0, 255); 
+  data.X = map(ax, -17000, 17000, 0, 255);  // X axis data
+  data.Y = map(ay, -17000, 17000, 0, 255);
   data.Z = map(az, -17000, 17000, 0, 255);  // Y axis data
   delay(100);
   Serial.print("Axis X = ");
