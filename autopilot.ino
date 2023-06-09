@@ -10,31 +10,45 @@
 #include "Servo.h"
 
 Servo elevator;
+Servo aileron;
+
 int elevatorPin = 10;
+int aileronPin = 11;
+
 float pulse;
+
 float accX, accY, accZ;
 float rollAngle, pitchAngle;
-float gyroRollRate, gyroPitchRate, gyroAngleZ;
-float gyrX, gyrY;
-float roll, pitch;
-float desiredPitch = -8;
-float outputPitch = 0;
-float gyroRoll, gyroPitch;
 
-float error, previous_error_pitch, PID;
+float gyroRollRate, gyroPitchRate, gyroRoll, gyroPitch;
+
+float desiredPitch = -8;
+float desiredRoll = -8;
+float outputPitch = 0;
+float outputRoll = 0;
+
+float error, prevPitchError, prevRollError, PID;
 float P = 0;
 float I = 0;
 float D = 0;
-double kp_pitch = 3.55;
-double ki_pitch = 0.003;
-double kd_pitch = 2.05;
-float elev_max = 50;
+
+double pRoll=2;//3.55
+double iRoll=0.002;//0.003
+double dRoll=1;//2.05
+
+double pPitch = 3.55;
+double iPitch = 0.003;
+double dPitch = 2.05;
 
 float elapsedTime, time, timePrev;
-float totalAngle;
 
 //Neutral servo positionings
 int neutralElev = 90;
+int neutralAil = 90;
+
+//Max servo positionings
+float maxElev = 50;
+float maxAil = 50;
 
 MPU6050 mpu;
 
@@ -50,13 +64,14 @@ void setup() {
 
 void autopilotOn() {
   elevator.attach(elevatorPin);
-  // Moving the servo
-  // elevator.write(30);
+  aileron.attach(aileronPin);
 }
 
 void autopilotOff() {
   pinMode(elevatorPin, LOW);
+  pinMode(aileronPin, LOW);
   elevator.detach();
+  aileron.detach();
 }
 
 void loop() {
@@ -106,32 +121,53 @@ void loop() {
 
     gyroRoll = 0.96 * (gyroRoll + gyroRollRate) + 0.04 * rollAngle;
     gyroPitch = 0.96 * (gyroPitch + gyroPitchRate) + 0.04 * pitchAngle;
-    // Serial.print(gyroRoll);
-    // Serial.print(" ");
-    // Serial.println(gyroPitch);
 
-    //PITCH
+    //Pitch
     error = gyroPitch - desiredPitch;
 
-    P = kp_pitch * error;
+    P = pPitch * error;
 
     if (-3 < error < 3) {
-      I += (ki_pitch * error);
+      I += (iPitch * error);
     }
 
-    D = kd_pitch * ((error - previous_error_pitch) / elapsedTime);
+    D = dPitch * ((error - prevPitchError) / elapsedTime);
 
     PID = P + I + D;
 
-    if (PID > elev_max) {
-      PID = elev_max;
+    if (PID > maxElev) {
+      PID = maxElev;
     }
-    if (PID < -elev_max) {
-      PID = -elev_max;
+    if (PID < -maxElev) {
+      PID = -maxElev;
     }
-    outputPitch = neutralElev - (PID);
-    previous_error_pitch = error;
+    outputPitch = neutralElev - PID;
+    prevPitchError = error;
     elevator.write(outputPitch);
+
+    //Roll
+    error = gyroRoll - desiredRoll;
+
+    P = pRoll * error;
+
+    if(-3 < error < 3){
+      I += (iRoll * error);
+    }
+
+    D = dRoll * ((error - prevRollError) / elapsedTime);
+
+    PID = P + I + D;
+
+    if(PID > maxAil){
+      PID = maxAil;
+    }
+    if(PID < maxAil * -1){
+      PID = maxAil * -1;
+    }
+
+    outputRoll = neutralAil + PID;
+    prevRollError = error;
+    aileron.write(outputRoll);
 
   } else {
     digitalWrite(13, LOW);
